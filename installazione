@@ -223,3 +223,62 @@ $ sudo pacman -S pulseaudio # Un server audio multiuso e ricco di funzionalità
 $ sudo pacman -S pavucontrol # Controllo del volume PulseAudio
 $ sudo pacman -S alsa-utils # Architettura audio Linux avanzata - Utilità
 $ sudo pacman -S alsa-plugins # Plugin ALSA aggiuntivi
+
+** Abilita il supporto Bluetooth sul tuo PC: **
+
+$ sudo pacman -S bluez bluez-utils blueman
+$ sudo systemctl enable bluetooth
+
+** Abilita il supporto di stampa sul tuo PC: **
+
+$ sudo pacman -S cups cups-filters cups-pdf system-config-printer
+$ sudo systemctl enable cups.service
+
+NOTA IMPORTANTE: se non c'è un'opzione per system-config-printer in xfce4-settings-manager, vai su /usr/share/applications/system-config-printer.desktop
+                 e imposta Categories=System;Settings;X-XFCE-SettingsDialog;X-XFCE-HardwareSettings;
+
+** Migliora l'utilizzo della batteria con TLP, un'utilità che sostanzialmente modifica le impostazioni del kernel per migliorare il consumo energetico. **
+** Ulteriori informazioni su TLP sono disponibili qui. Ulteriori informazioni su TLP-RDW (radio device wizard) **
+** sono disponibili nella wiki sul sito https://wiki.archlinux.org/title/Installation_guide **
+
+$ sudo pacman -S tlp tlp-rdw
+$ sudo systemctl enable tlp
+
+### esegui i seguenti comandi solo se utilizzi TLP-RDW: ###
+
+$ sudo systemctl enable NetworkManager-dispatcher.service
+$ sudo systemctl mask systemd-rfkill.service
+$ sudo systemctl mask systemd-rfkill.socket
+
+** Esegui il servizio che scarterà i blocchi inutilizzati sui file system montati. **
+** Questo è utile per le unità a stato solido (SSD) e gli storage thinly-provisioned. **
+** Ulteriori informazioni su fstrim sono disponibili sul sito https://wiki.archlinux.org/title/Installation_guide **
+
+$ sudo systemctl enable fstrim.timer
+
+** Installa temi e icone GTK: **
+
+$ sudo pacman -S arc-gtk-theme adapta-gtk-theme materia-gtk-theme
+$ sudo pacman -S papirus-icon-theme
+
+** Scegli i mirror pacman più veloci (usa la tua lista di paesi): **
+
+$ sudo reflector --country Germania,Austria,Svizzera,Italia \
+--fastest 10 \
+--threads $(nproc) \
+--save /etc/pacman.d/mirrorlist
+
+** Installa i componenti aggiuntivi di NetworkManager: **
+
+$ sudo pacman -S nm-connection-editor networkmanager-openvpn
+
+** Installa i driver vulkan: **
+
+$ pacman -S vulkan-intel # solo per sistemi con grafica Intel
+$ pacman -S nvidia-utils # solo per sistemi con Grafica Nvidia
+$ pacman -S amdvlk # solo per sistemi con grafica AMD
+
+** Riavvia per finalizzare l'installazione: **
+
+$ reboot
+
