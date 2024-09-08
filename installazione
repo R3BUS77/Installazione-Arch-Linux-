@@ -1,0 +1,225 @@
+** Sezione 01: Guida passo passo per l'installazione di Arch Linux sul tuo hardware **
+
+** Scaricare l'immagine Arch Linux **
+
+Vai alla pagina dei download di Arch Linux https://archlinux.org/download/
+Trova la sezione HTTP Direct Downloads e scegli un mirror di download.
+Seleziona un mirror che sia geograficamente più vicino alla tua posizione.
+Nella pagina mirror trova un archivio denominato archlinux-YYYY.MM.DD-x86_64.iso o archlinux-x86_64.iso o qualsiasi altro file con suffisso .iso.
+Altri file (come .txt, .tar.gz e persino .iso.sig) non sono necessari per il processo di installazione.
+
+** Preparazione del supporto di installazione **
+
+Inserisci una chiavetta USB nel tuo PC con almeno 16 GB di spazio disponibile.
+Trova il dispositivo corrispondente per la chiavetta USB nella cartella /dev. Di solito è /dev/sdb.
+NOTA IMPORTANTE: hai bisogno di un dispositivo a blocchi senza un numero alla fine. Se hai ad esempio /dev/sdb, /dev/sdb1 e /dev/sdb2 hai bisogno di /dev/sdb!
+Masterizza l'immagine ISO di Arch Linux scaricata in precedenza su una chiavetta USB (nel mio caso è /dev/sdb):
+
+$ sudo dd conv=fsync oflag=direct status=progress \
+if=./archlinux-YYYY.MM.DD-x86_64.iso of=/dev/sdb
+
+** Avviare nel supporto Arch Linux **
+
+Inserire il supporto di installazione nel computer su cui si sta installando Arch Linux.
+Accendi il PC e premi il tasto del menu di avvio. Per i laptop della serie Lenovo ThinkPad X1 Carbon, questo tasto è F12.
+Avviare da chiavetta USB e attendere che il processo di avvio sia terminato.
+NOTA IMPORTANTE: non tutti i dispositivi possono eseguire un sistema da una chiavetta USB appena estratti dalla confezione.
+Molti BIOS sono dotati di default dell'opzione Secure boot attivata. Potrebbe essere necessario disattivarla nel BIOS.
+
+** Connettiti al WiFi usando iwctl e verifica che la connessione sia stabilita: **
+
+$ iwctl
+[iwd]# station wlan0 get-networks
+[iwd]# station wlan0 connect <Nome del punto di accesso WiFi>
+[iwd]# exit
+$ ping 1.1.1.1 o www.google.it
+
+** Partizionamento del disco **
+
+Partizionare il dispositivo di archiviazione principale utilizzando l'utilità fdisk.
+È possibile trovare il nome del dispositivo di archiviazione utilizzando il comando lsblk.
+nel mio caso ho come hd un nvme, ma per hd o ssd vengono visualizati come: /dev/sda o altre lettere dopo sd
+
+$ fdisk /dev/nvme0n1
+[ripeti questo comando finché non vengono eliminate le partizioni esistenti]
+Comando (m per aiuto): d
+Comando (m per aiuto): d
+Comando (m per aiuto): d
+
+[Crea la partizione 1: efi]
+Comando (m per aiuto): n
+Numero partizione (1-128, predefinito 1): Invio ↵
+Primo settore (..., predefinito 2048): Invio ↵
+Ultimo settore ...: +256M
+
+[Crea la partizione 2: main]
+Comando (m per aiuto): n
+Numero partizione (2-128, predefinito 2): Invio ↵
+Primo settore (..., predefinito ...): Invio ↵
+Ultimo settore ...: -32G // raddoppia la dimensione della tua RAM
+
+[Crea la partizione 3: swap]
+Comando (m per aiuto): n
+Numero partizione (3-128, predefinito 3): Invio ↵
+Primo settore (..., predefinito ...): Invio ↵
+Ultimo settore ...: Invio ↵
+
+[cambia i tipi di partizione]
+Comando (m per aiuto): t
+Numero di partizione (1-3, predefinito 1): 1
+Tipo di partizione o alias (digitare L per elencare tutto): uefi
+Comando (m per aiuto): t
+Numero di partizione (1-3, predefinito 2): 2
+Tipo di partizione o alias (digitare L per elencare tutto): linux
+Comando (m per aiuto): t
+Numero di partizione (1-3, predefinito 3): 3
+Tipo di partizione o alias (digitare L per elencare tutto): swap
+
+[scrivi il partizionamento sul disco]
+Comando (m per aiuto): w
+
+** Crea filesystem sulle partizioni del disco create: **
+
+$ mkfs.fat -F 32 /dev/nvme0n1p1 # sulla partizione di sistema EFI
+$ mkfs -t ext4 /dev/nvme0n1p2 # sulla partizione del filesystem Linux
+$ mkswap /dev/nvme0n1p3 # sulla partizione di swap Linux
+
+** Montare correttamente tutti i filesystem su /mnt: **
+
+$ mount /dev/nvme0n1p2 /mnt
+$ mkdir -p /mnt/boot/efi
+$ mount /dev/nvme0n1p1 /mnt/boot/efi
+$ swapon /dev/nvme0n1p3
+
+** Installa i pacchetti essenziali nel nuovo file system e genera il file fstab: **
+
+$ pacstrap -i /mnt base linux linux-firmware sudo vim
+$ genfstab -U -p /mnt > /mnt/etc/fstab
+
+** Configurazione di base del nuovo sistema **
+
+Chroot nel file system appena creato:
+
+$ arch-chroot /mnt
+
+** Imposta le impostazioni locali e il fuso orario del sistema, sincronizza l'orologio hardware con l'orologio di sistema: **
+
+$ vim /etc/locale.gen # rimuovi il commento dalle impostazioni locali, ad esempio `it_IT.UTF-8`
+$ locale-gen
+$ echo "LANG=it_IT.UTF-8" > /etc/locale.conf # scegli le impostazioni locali
+$ ln -sf /usr/share/zoneinfo/Europe/Rome /etc/localtime # scegli il tuo fuso orario
+$ hwclock --systohc
+
+** Imposta il nome host del sistema: **
+
+$ echo tuonomehost > /etc/nomehost
+$ vim /etc/hosts
+127.0.0.1 localhost
+::1 localhost
+127.0.1.1 tuonomehost
+
+** Aggiungi nuovi utenti e imposta le password: **
+
+$ useradd -m -G wheel,storage,power,audio,video -s /bin/bash tuonomeutente
+$ passwd tuonomeutente
+$ passwd root
+
+** Aggiungere il gruppo wheel al file sudoers per consentire agli utenti di eseguire sudo: **
+
+$ visudo
+[rimuovi il commento dalla riga seguente nel file]
+%wheel ALL=(ALL) ALL
+
+** Installa e configura GRUB: **
+
+pacman -S grub efibootmgr
+$ grub-install /dev/nvme0n1
+$ grub-mkconfig -o /boot/grub/grub.cfg
+
+** Configurazione dello stack di rete: **
+
+$ pacman -S dhcpcd networkmanager resolvconf
+$ systemctl enable dhcpcd
+$ systemctl enable NetworkManager
+$ systemctl enable systemd-resolved
+
+** Esci da chroot, smonta tutti i dischi e riavvia: **
+
+$ exit
+$ umount /mnt/boot/efi
+$ umount /mnt
+$ reboot
+
+** Sezione 02: Configurazione dello spazio utente dopo l'installazione iniziale del sistema **
+
+** Configurazione di base dello spazio utente **
+
+** Attiva la sincronizzazione oraria tramite NTP: **
+
+$ timedatectl set-ntp true
+
+** Connettiti al WiFi tramite nmcli: **
+
+$ nmcli device wifi connect <Nome del punto di accesso WiFi> password <password>
+
+** Installa X.Org e le sue utilità: **
+
+$ sudo pacman -S xorg xorg-apps xorg-xinit xdotool xclip xsel
+
+** Software extra utili: **
+
+$ sudo pacman -S dbus # Bus dei messaggi utilizzato da molte applicazioni
+$ sudo pacman -S intel-ucode # File di aggiornamento del microcodice per CPU Intel
+$ sudo pacman -S fuse2 # Interfaccia per programmi per esportare un file system nel kernel Linux
+$ sudo pacman -S lshw # Fornisce informazioni dettagliate sull'hardware della macchina
+$ sudo pacman -S powertop # Uno strumento per diagnosticare problemi di consumo energetico e gestione dell'alimentazione
+$ sudo pacman -S inxi # Strumento di informazioni di sistema CLI completo
+$ sudo pacman -S acpi # Client per letture di batteria, alimentazione e temperatura
+$ sudo pacman -S base-devel # Strumenti di base per creare pacchetti Arch Linux
+$ sudo pacman -S git # Sistema di controllo versione distribuito
+$ sudo pacman -S zip # Compressore/archiviatore per creare e modificare file zip
+$ sudo pacman -S unzip # Per estrarre e visualizzare file in archivi .zip
+$ sudo pacman -S htop # Visualizzatore di processi CLI interattivo
+$ sudo pacman -S tree # Un programma di elenco directory
+$ sudo pacman -S dialog # Uno strumento per visualizzare finestre di dialogo da script shell
+$ sudo pacman -S reflector # Script per recuperare e filtrare l'ultimo elenco mirror di Pacman
+$ sudo pacman -S bash-completion # Completamento programmabile per la shell bash
+$ sudo pacman -S iw # Utilità di configurazione CLI per dispositivi wireless
+$ sudo pacman -S wpa_supplicant # Un'utilità che fornisce la negoziazione delle chiavi per le reti wireless WPA
+$ sudo pacman -S tcpdump # Potente analizzatore di pacchetti da riga di comando
+$ sudo pacman -S mtr # Combina le funzionalità di traceroute e ping in un unico strumento
+$ sudo pacman -S net-tools # Strumenti di configurazione per reti Linux
+$ sudo pacman -S conntrack-tools # Strumenti userspace per interagire con il sistema di tracciamento Netfilter
+$ sudo pacman -S ethtool # Utilità per controllare i driver di rete e l'hardware
+$ sudo pacman -S wget # Utilità di rete per recuperare file dal Web
+$ sudo pacman -S rsync # Strumento di copia file per file remoti e locali
+$ sudo pacman -S socat # Relè socket multiuso
+$ sudo pacman -S openbsd-netcat # Programma Netcat. Variante OpenBSD. $ sudo pacman -S axel # Acceleratore di download leggero da riga di comando
+
+** Installare Xfce4: **
+** Istruzioni per l'installazione di Xfce4 **
+
+$ sudo pacman -S xfce4
+$ sudo pacman -S xfce4-notifyd xfce4-screensaver xfce4-screenshooter
+$ sudo pacman -S thunar-archive-plugin thunar-media-tags-plugin
+$ sudo pacman -S network-manager-applet
+$ sudo pacman -S xfce4-xkb-plugin xfce4-battery-plugin xfce4-datetime-plugin xfce4-mount-plugin xfce4-netload-plugin xfce4-wavelan-plugin xfce4-pulseaudio-plugin xfce4-weather-plugin
+                 xfce4-whiskermenu-plugin
+
+Installa il gestore della sessione di accesso, preferisco ly per il suo minimalismo:
+
+$ sudo pacman -S ly
+$ sudo systemctl enable ly
+
+Installa i font di sistema essenziali:
+
+$ sudo pacman -S ttf-dejavu ttf-freefont ttf-liberation ttf-droid terminus-font
+$ sudo pacman -S noto-fonts noto-fonts-emoji ttf-ubuntu-font-family ttf-roboto ttf-roboto-mono
+
+Abilita il supporto audio sul tuo PC:
+
+$ sudo pacman -S sof-firmware # Firmware audio Open
+$ sudo pacman -S pulseaudio # Un server audio multiuso e ricco di funzionalità
+$ sudo pacman -S pavucontrol # Controllo del volume PulseAudio
+$ sudo pacman -S alsa-utils # Architettura audio Linux avanzata - Utilità
+$ sudo pacman -S alsa-plugins # Plugin ALSA aggiuntivi
