@@ -1,13 +1,13 @@
-** Fase 01:
-
+Fase 01
 Scaricare l'immagine Arch Linux
+
 Vai alla pagina dei download di Arch Linux https://archlinux.org/download/
 Trova la sezione HTTP Direct Downloads e scegli un mirror di download.
 Seleziona un mirror che sia geograficamente più vicino alla tua posizione.
 Nella pagina mirror trova un archivio denominato archlinux-YYYY.MM.DD-x86_64.iso o archlinux-x86_64.iso o qualsiasi altro file con suffisso .iso.
 Altri file (come .txt, .tar.gz e persino .iso.sig) non sono necessari per il processo di installazione.
 
-Fase 02:
+Fase 02
 Preparazione del supporto di installazione
 
 Inserisci una chiavetta USB nel tuo PC con almeno 16 GB di spazio disponibile.
@@ -20,6 +20,7 @@ if=./archlinux-YYYY.MM.DD-x86_64.iso of=/dev/sdb
 
 Fase 03:
 Avviare nel supporto Arch Linux
+
 Inserire il supporto di installazione nel computer su cui si sta installando Arch Linux.
 Accendi il PC e premi il tasto del menu di avvio. Per i laptop della serie Lenovo ThinkPad X1 Carbon, questo tasto è F12.
 Avviare da chiavetta USB e attendere che il processo di avvio sia terminato.
